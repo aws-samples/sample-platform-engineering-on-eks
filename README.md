@@ -1,4 +1,4 @@
-# Amazon EKS Platform Engineering Reference Architecture
+# Platform Engineering Reference Architecture built on Amazon EKS
 
 [日本語版はこちら / Japanese version](README.ja.md)
 
