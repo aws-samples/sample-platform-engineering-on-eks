@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: workloads-ex-app
+  namespace: argocd
+spec:
+  goTemplate: true
+  syncPolicy:
+    preserveResourcesOnDeletion: false
+  generators:
+  - matrix:
+      generators:
+      - clusters:
+          selector:
+            matchExpressions:
+            - key: workload_cluster
+              operator: Exists
+      - git:
+          requeueAfterSeconds: 30
+          repoURL: '{{ .metadata.annotations.workload_repo_url }}'
+          revision: '{{ .metadata.annotations.workload_repo_revision }}'
+          directories:
+          - path: 'ex-app/*/{{ .metadata.labels.environment }}'
+  template:
+    metadata:
+      name: 'workloads-ex-app-{{ index .path.segments 1 }}-{{ .metadata.labels.environment }}'
+      labels:
+        environment: '{{ .metadata.labels.environment }}'
+        app.kubernetes.io/part-of: 'ex-app'
+        app.kubernetes.io/component: '{{ index .path.segments 1 }}'
+    spec:
+      project: default
+      source:
+        repoURL: '{{ .metadata.annotations.workload_repo_url }}'
+        path: '{{ .path.path }}'
+        targetRevision: '{{ .metadata.annotations.workload_repo_revision }}'
+      destination:
+        namespace: '{{ index .path.segments 0 }}'
+        server: '{{ .server }}'
+      syncPolicy:
+        automated:
+          allowEmpty: true
+          prune: true
+        retry:
+          backoff:
+            duration: 1m

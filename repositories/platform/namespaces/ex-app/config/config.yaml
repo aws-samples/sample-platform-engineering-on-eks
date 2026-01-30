@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: namespace-ex-app
+  namespace: argocd
+spec:
+  goTemplate: true
+  syncPolicy:
+    preserveResourcesOnDeletion: false
+  generators:
+  - clusters:
+      selector:
+        matchExpressions:
+        - key: workload_cluster
+          operator: Exists
+  template:
+    metadata:
+      name: 'namespace-ex-app-{{ .metadata.labels.environment }}'
+      labels:
+        environment: '{{ .metadata.labels.environment }}'
+    spec:
+      project: default
+      source:
+        repoURL: '{{ .metadata.annotations.platform_repo_url }}'
+        path: 'charts/namespace-config'
+        targetRevision: '{{ .metadata.annotations.platform_repo_revision }}'
+        helm:
+          releaseName: 'ex-app'
+          ignoreMissingValueFiles: true
+          valueFiles:
+            - '../../namespaces/ex-app/config/values/default-values.yaml'
+            - '../../namespaces/ex-app/config/values/{{ .metadata.labels.environment }}-values.yaml'
+      destination:
+        server: '{{ .server }}'
+      syncPolicy:
+        automated:
+          allowEmpty: true
+          prune: true
+        retry:
+          backoff:
+            duration: 1m

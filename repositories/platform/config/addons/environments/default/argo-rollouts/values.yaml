@@ -1,0 +1,9 @@
+serviceAccount:
+  name: argo-rollouts
+# controller:
+  # extraArgs:
+  # - "--aws-verify-target-group"
+  # - "--alb-ingress-classes=default-internet-facing"
+dashboard:
+  serviceAccount:
+    name: argo-rollouts

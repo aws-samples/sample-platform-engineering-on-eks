@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: config-automode
+  namespace: argocd
+spec:
+  goTemplate: true
+  syncPolicy:
+    preserveResourcesOnDeletion: false
+  generators:
+  - clusters:
+      selector:
+        matchExpressions:
+        - key: workload_cluster
+          operator: Exists
+  template:
+    metadata:
+      name: 'config-automode-{{ .metadata.labels.environment }}'
+      labels:
+        environment: '{{ .metadata.labels.environment }}'
+    spec:
+      project: default
+      source:
+        repoURL: '{{ .metadata.annotations.platform_repo_url }}'
+        targetRevision: '{{ .metadata.annotations.platform_repo_revision }}'
+        path: 'config/automode/{{ .metadata.labels.environment }}'
+      destination:
+        namespace: argocd
+        server: '{{ .server }}'
+      syncPolicy:
+        automated:
+          allowEmpty: true
+          prune: true
+        retry:
+          backoff:
+            duration: 1m

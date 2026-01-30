@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: config-addons
+  namespace: argocd
+spec:
+  syncPolicy:
+    preserveResourcesOnDeletion: true
+  goTemplate: true
+  goTemplateOptions: 
+    - missingkey=error
+  generators: 
+  - clusters:
+      selector:
+        matchExpressions:
+        - key: platform_cluster
+          operator: Exists
+  template:
+    metadata:
+      name: config-addons
+    spec:
+      project: default
+      source:
+        repoURL: '{{ .metadata.annotations.platform_repo_url }}'
+        targetRevision: '{{ .metadata.annotations.platform_repo_revision }}'
+        path: 'config/addons'
+      destination:
+        namespace: argocd
+        server: '{{ .server }}'
+      syncPolicy:
+        automated:
+          selfHeal: false
+          allowEmpty: true
+          prune: false
+        retry:
+          limit: 100
+        syncOptions: 
+          - CreateNamespace=true 
+          - ServerSideApply=true

@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: bootstrap-workloads
+  namespace: argocd
+spec:
+  goTemplate: true
+  syncPolicy:
+    preserveResourcesOnDeletion: false
+  generators:
+  - matrix:
+      generators:
+      - clusters:
+          selector:
+            matchExpressions:
+            - key: platform_cluster
+              operator: Exists
+      - git:
+          repoURL: '{{ .metadata.annotations.platform_repo_url }}'
+          revision: '{{ .metadata.annotations.platform_repo_revision }}'
+          directories:
+          - path: 'namespaces/*/workloads'
+  template:
+    metadata:
+      name: 'workloads-{{ index .path.segments 1 }}'
+    spec:
+      project: default
+      source:
+        repoURL: '{{ .metadata.annotations.platform_repo_url }}'
+        path: '{{ .path.path }}'
+        targetRevision: '{{ .metadata.annotations.platform_repo_revision }}'
+      destination:
+        server: '{{ .server }}'
+      syncPolicy:
+        automated:
+          allowEmpty: true
+        retry:
+          backoff:
+            duration: 1m
+            #limit: 100

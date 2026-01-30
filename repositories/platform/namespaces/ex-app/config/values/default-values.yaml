@@ -1,0 +1,28 @@
+name: ex-app
+
+namespaces:
+  ex-app:
+    limitRanges:
+    - name: ex-app
+      limits:
+        - default: # this section defines default limits
+            cpu: 500m
+          defaultRequest: # this section defines default requests
+            cpu: 500m
+          max: # max and min define the limit range
+            cpu: "2"
+          min:
+            cpu: 50m
+          type: Container
+    resourceQuotas:
+    - name: ex-app
+      spec:
+        hard:
+          cpu: "1000"
+          memory: 200Gi
+          pods: "10"
+        scopeSelector:
+          matchExpressions:
+          - operator : In
+            scopeName: PriorityClass
+            values: ["high"]
