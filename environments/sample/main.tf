@@ -10,11 +10,11 @@ locals {
   platform_repo_url  = "https://git-codecommit.${var.aws_region}.amazonaws.com/v1/repos/${local.platform_repo_name}"
   workload_repo_name = "${local.env_prefix}-workload"
   workload_repo_url  = "https://git-codecommit.${var.aws_region}.amazonaws.com/v1/repos/${local.workload_repo_name}"
+
 }
 
 module "cluster_development" {
   source                   = "../../modules/platform_cluster"
-  aws_profile              = var.aws_profile
   aws_region               = var.aws_region
   environment              = "dev"
   argo_cd_idc_instance_arn = var.argo_cd_idc_instance_arn
