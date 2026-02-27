@@ -31,3 +31,9 @@ variable "argo_cd_idc_groups" {
   description = "Admin Groups for ArgoCD"
   type        = map(string)
 }
+
+variable "network_flow_monitor_scope_arn" {
+  description = "Network Flow Monitor Scope Arn for Container Network Observability"
+  default     = null
+  type        = string
+}

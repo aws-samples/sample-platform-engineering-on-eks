@@ -30,32 +30,43 @@ module "eks" {
   }
 
   # EKS Addons
-  addons = {
-    amazon-cloudwatch-observability = {
-      version = "4.3.1-eksbuild.1"
-      pod_identity_association = [
-        {
-          role_arn        = aws_iam_role.cloudwatch_observability_addon.arn
-          service_account = "cloudwatch-agent"
-        }
-      ]
-      configuration_values = jsonencode({
-        manager = {
-          applicationSignals = {
-            autoMonitor = {
-              monitorAllServices = true
-              restartPods        = true
-              exclude = {
-                java   = { namespaces = ["argocd", "amazon-guardduty"] }
-                python = { namespaces = ["argocd", "amazon-guardduty"] }
-                dotnet = { namespaces = ["argocd", "amazon-guardduty"] }
-                nodejs = { namespaces = ["argocd", "amazon-guardduty"] }
+  addons = merge(
+    var.network_flow_monitor_scope_arn != "" ? {
+      aws-network-flow-monitoring-agent = {
+        pod_identity_association = [
+          {
+            role_arn        = aws_iam_role.nfm_addon[0].arn
+            service_account = "aws-network-flow-monitor-agent-service-account"
+          }
+        ]
+      }
+    } : {},
+    {
+      amazon-cloudwatch-observability = {
+        pod_identity_association = [
+          {
+            role_arn        = aws_iam_role.cloudwatch_observability_addon.arn
+            service_account = "cloudwatch-agent"
+          }
+        ]
+        configuration_values = jsonencode({
+          manager = {
+            applicationSignals = {
+              autoMonitor = {
+                monitorAllServices = true
+                restartPods        = true
+                exclude = {
+                  java   = { namespaces = ["argocd", "amazon-guardduty"] }
+                  python = { namespaces = ["argocd", "amazon-guardduty"] }
+                  dotnet = { namespaces = ["argocd", "amazon-guardduty"] }
+                  nodejs = { namespaces = ["argocd", "amazon-guardduty"] }
+                }
               }
             }
           }
-        }
-      })
+        })
+      }
     }
-  }
+  )
   tags = local.tags
 }

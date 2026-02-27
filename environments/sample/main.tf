@@ -14,12 +14,13 @@ locals {
 }
 
 module "cluster_development" {
-  source                   = "../../modules/platform_cluster"
-  aws_region               = var.aws_region
-  environment              = "dev"
-  argo_cd_idc_instance_arn = var.argo_cd_idc_instance_arn
-  argo_cd_idc_region       = var.argo_cd_idc_region
-  argo_cd_idc_groups       = var.argo_cd_idc_groups
-  platform_repo_url        = local.platform_repo_url
-  workload_repo_url        = local.workload_repo_url
+  source                         = "../../modules/platform_cluster"
+  aws_region                     = var.aws_region
+  environment                    = "dev"
+  argo_cd_idc_instance_arn       = var.argo_cd_idc_instance_arn
+  argo_cd_idc_region             = var.argo_cd_idc_region
+  argo_cd_idc_groups             = var.argo_cd_idc_groups
+  platform_repo_url              = local.platform_repo_url
+  workload_repo_url              = local.workload_repo_url
+  network_flow_monitor_scope_arn = var.network_flow_monitor_scope_arn
 }

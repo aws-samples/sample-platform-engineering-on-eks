@@ -2,10 +2,6 @@
 // SPDX-License-Identifier: MIT-0
 
 
-variable "aws_profile" {
-  description = "AWS profile to manage the AWS account where the env are created"
-  type        = string
-}
 variable "aws_region" {
   description = "AWS region where the env are created"
   type        = string
@@ -31,7 +27,7 @@ variable "environment" {
 variable "kubernetes_version" {
   description = "Kubernetes version"
   type        = string
-  default     = "1.34"
+  default     = "1.35"
 }
 
 variable "argo_cd_idc_region" {
@@ -81,4 +77,10 @@ variable "workload_repo_revision" {
   description = "Workload Repository Revision"
   type        = string
   default     = "main"
+}
+
+variable "network_flow_monitor_scope_arn" {
+  description = "ARN of the Network Flow Monitor scope. If not set, NFM resources will not be created."
+  type        = string
+  default     = null
 }
