@@ -52,39 +52,7 @@ resource "aws_eks_capability" "eks_capabilities" {
   tags = local.tags
 }
 
-## Register Cluster
-resource "kubernetes_secret_v1" "platform_cluster" {
-  metadata {
-    name      = module.eks.cluster_name
-    namespace = "argocd"
-    labels = {
-      "argocd.argoproj.io/secret-type" = "cluster"
-      cluster_name                     = module.eks.cluster_name
-      environment                      = var.environment
-      platform_cluster                 = true
-      workload_cluster                 = true
-      enable_argo_rollouts             = true
-    }
-    annotations = merge(
-      {
-        platform_repo_url      = var.platform_repo_url
-        platform_repo_path     = var.platform_repo_path
-        platform_repo_revision = var.platform_repo_revision
-      },
-      {
-        workload_repo_url      = var.workload_repo_url
-        workload_repo_path     = var.workload_repo_path
-        workload_repo_revision = var.workload_repo_revision
-      },
-    )
-  }
 
-  data = {
-    name    = module.eks.cluster_name
-    server  = module.eks.cluster_arn
-    project = "default"
-  }
-}
 
 resource "aws_eks_access_policy_association" "argo_cd_access_entry" {
   cluster_name  = module.eks.cluster_name

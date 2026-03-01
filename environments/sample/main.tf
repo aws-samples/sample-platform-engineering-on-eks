@@ -20,7 +20,15 @@ module "cluster_development" {
   argo_cd_idc_instance_arn       = var.argo_cd_idc_instance_arn
   argo_cd_idc_region             = var.argo_cd_idc_region
   argo_cd_idc_groups             = var.argo_cd_idc_groups
-  platform_repo_url              = local.platform_repo_url
-  workload_repo_url              = local.workload_repo_url
   network_flow_monitor_scope_arn = var.network_flow_monitor_scope_arn
+}
+
+module "platform_cluster_bootstrap" {
+  source = "../../modules/platform_cluster_bootstrap"
+
+  cluster_name      = module.cluster_development.cluster_name
+  cluster_arn       = module.cluster_development.cluster_arn
+  environment       = local.environment
+  platform_repo_url = local.platform_repo_url
+  workload_repo_url = local.workload_repo_url
 }

@@ -45,40 +45,6 @@ variable "argo_cd_idc_groups" {
   type        = map(string)
 }
 
-variable "platform_repo_url" {
-  description = "Platform Repository URL"
-  type        = string
-}
-
-variable "platform_repo_path" {
-  description = "Platform Repository Path"
-  type        = string
-  default     = ""
-}
-
-variable "platform_repo_revision" {
-  description = "Platform Repository URL"
-  type        = string
-  default     = "main"
-}
-
-variable "workload_repo_url" {
-  description = "Workload Repository URL"
-  type        = string
-}
-
-variable "workload_repo_path" {
-  description = "Workload Repository Path"
-  type        = string
-  default     = ""
-}
-
-variable "workload_repo_revision" {
-  description = "Workload Repository Revision"
-  type        = string
-  default     = "main"
-}
-
 variable "network_flow_monitor_scope_arn" {
   description = "ARN of the Network Flow Monitor scope. If not set, NFM resources will not be created."
   type        = string
