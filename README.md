@@ -507,6 +507,142 @@ You can also visually verify Rollout status in the Argo CD UI. Blue/Green deploy
 
 For more details, see [apps/distribution-monitor/README.md](apps/distribution-monitor/README.md).
 
+## Managing AWS Resources with ACK (AWS Controllers for Kubernetes)
+
+This platform enables developers to create and manage AWS resources directly from Kubernetes using ACK (AWS Controllers for Kubernetes). Platform teams can grant namespace-specific IAM permissions, allowing developers to safely manage AWS resources within their namespaces.
+
+### How Platform Teams Configure IAM Permissions for Namespaces
+
+Platform teams use the `ack_iam_role_selector` Terraform module to grant AWS service permissions to specific namespaces. This follows the principle of least privilege by scoping permissions to individual namespaces.
+
+#### Example: Granting S3 Permissions to ex-app Namespace
+
+Create a configuration file (e.g., `environments/sample/namespace_ex_app.tf`):
+
+```hcl
+module "ack_iam_role_selector_ex_app_s3" {
+  source = "../../modules/ack_iam_role_selector"
+
+  resource_prefix          = var.resource_prefix
+  environment              = "dev"
+  selector_name            = "ex-app-s3"
+  namespace                = "ex-app"
+  ack_controller_role_arn  = module.cluster_development.ack_capability_role_arn
+  namespace_selector_names = ["ex-app"]
+
+  # S3 permissions for specific bucket pattern
+  iam_policy_statements = [
+    {
+      effect = "Allow"
+      actions = [
+        "s3:CreateBucket",
+        "s3:DeleteBucket",
+        "s3:GetBucket*",
+        "s3:PutBucket*",
+        "s3:ListBucket"
+      ]
+      resources = [
+        "arn:aws:s3:::ex-idp-dev-ex-app-*"
+      ]
+    },
+    {
+      effect = "Allow"
+      actions = [
+        "s3:ListAllMyBuckets"
+      ]
+      resources = ["*"]
+    }
+  ]
+}
+```
+
+Apply the configuration:
+
+```bash
+cd environments/sample
+terraform apply
+```
+
+This creates:
+1. An IAM role with S3 permissions scoped to buckets matching `ex-idp-dev-ex-app-*`
+2. A Kubernetes `IAMRoleSelector` CRD that associates the role with the `ex-app` namespace
+
+### How Developers Use ACK to Create AWS Resources
+
+Once platform teams have configured IAM permissions, developers can create AWS resources by applying Kubernetes manifests in their namespace.
+
+#### Example: Creating an S3 Bucket
+
+Create a manifest file (e.g., `s3-bucket.yaml`):
+
+```yaml
+apiVersion: s3.services.k8s.aws/v1alpha1
+kind: Bucket
+metadata:
+  name: my-app-data
+  namespace: ex-app
+spec:
+  name: ex-idp-dev-ex-app-my-app-data
+```
+
+Apply the manifest:
+
+```bash
+kubectl apply -f s3-bucket.yaml
+```
+
+Verify the bucket was created:
+
+```bash
+# Check Kubernetes resource status
+kubectl get bucket -n ex-app my-app-data
+
+# Verify in AWS
+aws s3 ls | grep ex-idp-dev-ex-app-my-app-data
+```
+
+The ACK S3 controller automatically:
+1. Assumes the IAM role configured for the `ex-app` namespace
+2. Creates the S3 bucket in AWS
+3. Updates the Kubernetes resource status with the bucket's state
+
+#### Deleting Resources
+
+```bash
+kubectl delete bucket -n ex-app my-app-data
+```
+
+ACK automatically deletes the corresponding AWS resource.
+
+### Security Model: Shared Responsibility
+
+This platform implements a clear separation of responsibilities between platform teams and development teams:
+
+**Platform Team Responsibilities**
+- Configure and manage IAM permissions per namespace
+- Define security policies (which AWS services can be accessed)
+- Enforce resource naming conventions (e.g., `ex-idp-dev-ex-app-*` pattern)
+- Design permissions based on the principle of least privilege
+
+**Development Team Responsibilities**
+- Create and manage AWS resources required for their applications
+- Define resources declaratively using Kubernetes manifests
+- Add or remove resources aligned with application lifecycle
+
+This separation enables development teams to create necessary resources in a self-service manner without dealing with complex AWS IAM configurations. Meanwhile, platform teams maintain centralized control over security and governance.
+
+### Supported AWS Services
+
+ACK supports many AWS services including:
+- S3 (Simple Storage Service)
+- DynamoDB
+- RDS (Relational Database Service)
+- ElastiCache
+- SNS/SQS
+- And many more
+
+For the complete list, see [ACK Service Controllers](https://aws-controllers-k8s.github.io/community/docs/community/services/).
+
 ## Key Features
 
 ### EKS Capabilities - Managed Argo CD

@@ -505,6 +505,142 @@ Argo CD UI でも Rollout の状態を視覚的に確認できます。Blue/Gree
 
 詳細は [apps/distribution-monitor/README.md](apps/distribution-monitor/README.md) を参照してください。
 
+## ACK (AWS Controllers for Kubernetes) による AWS リソース管理
+
+このプラットフォームでは、開発者が ACK (AWS Controllers for Kubernetes) を使用して、Kubernetes から直接 AWS リソースを作成・管理できます。プラットフォームチームが Namespace ごとに IAM 権限を付与することで、開発者は自分の Namespace 内で安全に AWS リソースを管理できます。
+
+### プラットフォームチームによる Namespace への IAM 権限設定
+
+プラットフォームチームは、`ack_iam_role_selector` Terraform モジュールを使用して、特定の Namespace に AWS サービスの権限を付与します。これにより、最小権限の原則に従い、Namespace ごとにスコープされた権限を付与できます。
+
+#### 例: ex-app Namespace に S3 権限を付与
+
+設定ファイルを作成します（例: `environments/sample/namespace_ex_app.tf`）：
+
+```hcl
+module "ack_iam_role_selector_ex_app_s3" {
+  source = "../../modules/ack_iam_role_selector"
+
+  resource_prefix          = var.resource_prefix
+  environment              = "dev"
+  selector_name            = "ex-app-s3"
+  namespace                = "ex-app"
+  ack_controller_role_arn  = module.cluster_development.ack_capability_role_arn
+  namespace_selector_names = ["ex-app"]
+
+  # 特定のバケットパターンに対する S3 権限
+  iam_policy_statements = [
+    {
+      effect = "Allow"
+      actions = [
+        "s3:CreateBucket",
+        "s3:DeleteBucket",
+        "s3:GetBucket*",
+        "s3:PutBucket*",
+        "s3:ListBucket"
+      ]
+      resources = [
+        "arn:aws:s3:::ex-idp-dev-ex-app-*"
+      ]
+    },
+    {
+      effect = "Allow"
+      actions = [
+        "s3:ListAllMyBuckets"
+      ]
+      resources = ["*"]
+    }
+  ]
+}
+```
+
+設定を適用します：
+
+```bash
+cd environments/sample
+terraform apply
+```
+
+これにより以下が作成されます：
+1. `ex-idp-dev-ex-app-*` パターンにマッチするバケットに対する S3 権限を持つ IAM ロール
+2. そのロールを `ex-app` Namespace に関連付ける Kubernetes `IAMRoleSelector` CRD
+
+### 開発者による ACK を使った AWS リソースの作成
+
+プラットフォームチームが IAM 権限を設定した後、開発者は自分の Namespace に Kubernetes マニフェストを適用することで AWS リソースを作成できます。
+
+#### 例: S3 バケットの作成
+
+マニフェストファイルを作成します（例: `s3-bucket.yaml`）：
+
+```yaml
+apiVersion: s3.services.k8s.aws/v1alpha1
+kind: Bucket
+metadata:
+  name: my-app-data
+  namespace: ex-app
+spec:
+  name: ex-idp-dev-ex-app-my-app-data
+```
+
+マニフェストを適用します：
+
+```bash
+kubectl apply -f s3-bucket.yaml
+```
+
+バケットが作成されたことを確認します：
+
+```bash
+# Kubernetes リソースの状態を確認
+kubectl get bucket -n ex-app my-app-data
+
+# AWS で確認
+aws s3 ls | grep ex-idp-dev-ex-app-my-app-data
+```
+
+ACK S3 controller は自動的に以下を実行します：
+1. `ex-app` Namespace 用に設定された IAM ロールを assume
+2. AWS に S3 バケットを作成
+3. Kubernetes リソースのステータスをバケットの状態で更新
+
+#### リソースの削除
+
+```bash
+kubectl delete bucket -n ex-app my-app-data
+```
+
+ACK は対応する AWS リソースを自動的に削除します。
+
+### セキュリティモデル：責任共有モデル
+
+このプラットフォームは、プラットフォームチームと開発チームの間で明確な責任分離を実現します：
+
+**プラットフォームチームの責任**
+- Namespace ごとの IAM 権限の設定と管理
+- セキュリティポリシーの定義（どの AWS サービスへのアクセスを許可するか）
+- リソース命名規則の強制（例: `ex-idp-dev-ex-app-*` パターン）
+- 最小権限の原則に基づいた権限設計
+
+**開発チームの責任**
+- アプリケーションに必要な AWS リソースの作成と管理
+- Kubernetes マニフェストによる宣言的なリソース定義
+- アプリケーションライフサイクルに合わせたリソースの追加・削除
+
+この分離により、開発チームは AWS IAM の複雑な設定を意識することなく、必要なリソースをセルフサービスで作成できます。一方、プラットフォームチームはセキュリティとガバナンスを一元管理できます。
+
+### サポートされている AWS サービス
+
+ACK は以下を含む多くの AWS サービスをサポートしています：
+- S3 (Simple Storage Service)
+- DynamoDB
+- RDS (Relational Database Service)
+- ElastiCache
+- SNS/SQS
+- その他多数
+
+完全なリストは [ACK Service Controllers](https://aws-controllers-k8s.github.io/community/docs/community/services/) を参照してください。
+
 ## 主要な機能
 
 ### EKS Capabilities - マネージド Argo CD
