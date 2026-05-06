@@ -21,6 +21,7 @@ module "cluster_development" {
   argo_cd_idc_region             = var.argo_cd_idc_region
   argo_cd_idc_groups             = var.argo_cd_idc_groups
   network_flow_monitor_scope_arn = var.network_flow_monitor_scope_arn
+  public_access_cidrs            = var.public_access_cidrs
 }
 
 module "platform_cluster_bootstrap" {

@@ -50,3 +50,9 @@ variable "network_flow_monitor_scope_arn" {
   type        = string
   default     = null
 }
+
+variable "public_access_cidrs" {
+  description = "List of CIDR blocks allowed to access the EKS API server endpoint"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
