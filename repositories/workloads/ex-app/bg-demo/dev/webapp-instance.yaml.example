@@ -1,0 +1,10 @@
+apiVersion: kro.run/v1alpha1
+kind: WebApp
+metadata:
+  name: bg-demo
+spec:
+  name: bg-demo
+  image: argoproj/rollouts-demo:blue
+  replicas: 2
+  port: 8080
+  ingressCidrs: "x.x.x.x/32,y.y.y.y/32"

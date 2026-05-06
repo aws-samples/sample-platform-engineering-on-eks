@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: config-kro-definitions
+  namespace: argocd
+spec:
+  goTemplate: true
+  syncPolicy:
+    preserveResourcesOnDeletion: true
+  generators:
+  - clusters:
+      selector:
+        matchExpressions:
+        - key: platform_cluster
+          operator: Exists
+  template:
+    metadata:
+      name: config-kro-definitions
+    spec:
+      project: default
+      source:
+        repoURL: '{{ .metadata.annotations.platform_repo_url }}'
+        targetRevision: '{{ .metadata.annotations.platform_repo_revision }}'
+        path: 'config/kro-definitions'
+      destination:
+        namespace: argocd
+        server: '{{ .server }}'
+      syncPolicy:
+        automated:
+          selfHeal: true
+          allowEmpty: true
+          prune: true
+        retry:
+          limit: 100
