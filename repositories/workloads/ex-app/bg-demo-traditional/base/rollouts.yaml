@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: bg-demo
+spec:
+  replicas: 2
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: bg-demo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bg-demo
+    spec:
+      containers:
+      - name: bg-demo
+        image: bg-demo
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+  strategy:
+    blueGreen: 
+      activeService: bg-demo-active
+      previewService: bg-demo-preview
+      autoPromotionEnabled: false
