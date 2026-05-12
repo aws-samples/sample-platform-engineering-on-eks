@@ -1,0 +1,124 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: webapp
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: WebApp
+    group: kro.run
+    spec:
+      name: string | required=true
+      image: string | required=true
+      replicas: integer | default=2
+      port: integer | default=8080
+      ingressPath: string | default="/*"
+      ingressCidrs: string | default=""
+  resources:
+  - id: rollout
+    template:
+      apiVersion: argoproj.io/v1alpha1
+      kind: Rollout
+      metadata:
+        name: ${schema.spec.name}
+      spec:
+        replicas: ${schema.spec.replicas}
+        revisionHistoryLimit: 2
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: ${schema.spec.name}
+        template:
+          metadata:
+            labels:
+              app.kubernetes.io/name: ${schema.spec.name}
+          spec:
+            containers:
+            - name: ${schema.spec.name}
+              image: ${schema.spec.image}
+              imagePullPolicy: Always
+              ports:
+              - name: http
+                containerPort: ${schema.spec.port}
+                protocol: TCP
+              resources:
+                requests:
+                  memory: "256Mi"
+                  cpu: "100m"
+                limits:
+                  memory: "256Mi"
+                  cpu: "500m"
+        strategy:
+          blueGreen:
+            activeService: ${schema.spec.name}-active
+            previewService: ${schema.spec.name}-preview
+            autoPromotionEnabled: false
+  - id: serviceActive
+    template:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: ${schema.spec.name}-active
+        labels:
+          app.kubernetes.io/name: ${schema.spec.name}
+      spec:
+        ports:
+        - port: 80
+          targetPort: http
+          protocol: TCP
+          name: http
+        selector:
+          app.kubernetes.io/name: ${schema.spec.name}
+  - id: servicePreview
+    template:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: ${schema.spec.name}-preview
+        labels:
+          app.kubernetes.io/name: ${schema.spec.name}
+      spec:
+        ports:
+        - port: 80
+          targetPort: http
+          protocol: TCP
+          name: http
+        selector:
+          app.kubernetes.io/name: ${schema.spec.name}
+  - id: ingressActive
+    template:
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: ${schema.spec.name}-active
+        annotations:
+          alb.ingress.kubernetes.io/inbound-cidrs: ${schema.spec.ingressCidrs}
+      spec:
+        rules:
+        - http:
+            paths:
+            - path: ${schema.spec.ingressPath}
+              pathType: ImplementationSpecific
+              backend:
+                service:
+                  name: ${schema.spec.name}-active
+                  port:
+                    name: http
+  - id: ingressPreview
+    template:
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: ${schema.spec.name}-preview
+        annotations:
+          alb.ingress.kubernetes.io/inbound-cidrs: ${schema.spec.ingressCidrs}
+      spec:
+        rules:
+        - http:
+            paths:
+            - path: ${schema.spec.ingressPath}
+              pathType: ImplementationSpecific
+              backend:
+                service:
+                  name: ${schema.spec.name}-preview
+                  port:
+                    name: http

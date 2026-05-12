@@ -1,0 +1,13 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bg-demo-active
+  annotations:
+    alb.ingress.kubernetes.io/inbound-cidrs: "x.x.x.x/32,y.y.y.y/32"
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bg-demo-preview
+  annotations:
+    alb.ingress.kubernetes.io/inbound-cidrs: "x.x.x.x/32,y.y.y.y/32"

@@ -12,6 +12,7 @@ module "eks" {
   name                   = "${local.env_prefix}-cluster"
   kubernetes_version     = var.kubernetes_version
   endpoint_public_access = true
+  endpoint_public_access_cidrs = var.public_access_cidrs
   create_kms_key         = false
   encryption_config      = null
   authentication_mode    = "API"
@@ -31,7 +32,7 @@ module "eks" {
 
   # EKS Addons
   addons = merge(
-    var.network_flow_monitor_scope_arn != "" ? {
+    var.network_flow_monitor_scope_arn != null ? {
       aws-network-flow-monitoring-agent = {
         pod_identity_association = [
           {

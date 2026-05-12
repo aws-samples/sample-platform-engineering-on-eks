@@ -1,0 +1,15 @@
+aws_profile              = "default"
+aws_region               = "us-east-1"
+resource_prefix          = "ex-idp"
+argo_cd_idc_region       = "us-east-1"
+argo_cd_idc_instance_arn = "arn:aws:sso:::instance/ssoins-XXXXXXXXXXXXXXXX"
+
+argo_cd_idc_groups = {
+  "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" = "ADMIN"
+}
+
+# Restrict EKS API and ALB access to your IP ranges
+public_access_cidrs = [
+  "x.x.x.x/32", # Your office IP
+  "y.y.y.y/32", # Your home IP
+]

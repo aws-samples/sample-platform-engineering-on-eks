@@ -84,3 +84,9 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+# IP address restrictions (contains real IPs)
+**/ingress-cidrs.yaml
+
+# kro instance with real IPs
+**/webapp-instance.yaml
