@@ -12,6 +12,8 @@ This project demonstrates an Internal Developer Platform (IDP) composed of the f
 
 - **EKS Auto Mode**: Managed Kubernetes cluster with automated compute and storage management
 - **EKS Capabilities - Argo CD**: Fully managed Argo CD provided by AWS (installation, upgrades, and operations managed by AWS)
+- **EKS Capabilities - kro**: Kubernetes Resource Orchestrator for custom API abstraction (reduces developer cognitive load)
+- **EKS Capabilities - ACK**: AWS Controllers for Kubernetes (manage AWS resources declaratively)
 - **Argo Rollouts**: Advanced deployment strategies such as Blue/Green deployments
 - **Multi-tenancy**: Namespace-based multi-tenant configuration
 - **Observability**: Integrated monitoring with CloudWatch
@@ -29,10 +31,18 @@ This project demonstrates an Internal Developer Platform (IDP) composed of the f
 │   ├── platform/                # Platform configuration repository
 │   │   ├── bootstrap/          # Argo CD bootstrap configuration
 │   │   ├── charts/             # Helm charts (namespace-config, etc.)
-│   │   ├── config/             # Addon configurations (Argo Rollouts, etc.)
+│   │   ├── config/             # Addon and kro configurations
+│   │   │   ├── addons/         # Cluster addons (Argo Rollouts, etc.)
+│   │   │   ├── automode/       # EKS Auto Mode configuration
+│   │   │   └── kro-definitions/ # kro ResourceGraphDefinitions
 │   │   └── namespaces/         # Namespace definitions and workload configurations
 │   └── workloads/              # Application manifest repository
-│       └── bg-demo/            # Blue/Green deployment demo
+│       └── ex-app/
+│           ├── bg-demo-kro/         # kro version (1 file per app)
+│           └── bg-demo-traditional/ # Traditional Kustomize version
+├── scripts/
+│   ├── push-platform.sh         # Push platform repo to CodeCommit
+│   └── push-workload.sh         # Push workload repo to CodeCommit (kro or traditional)
 └── apps/
     └── distribution-monitor/    # Sample application (load distribution visualization)
 ```
@@ -44,6 +54,8 @@ Build an EKS cluster with Terraform:
 - **EKS Auto Mode**: Automated node and storage management
 - **VPC**: Private network with 3 AZ configuration
 - **EKS Capabilities - Argo CD**: AWS fully managed Argo CD (automatic installation and upgrades)
+- **EKS Capabilities - ACK**: AWS Controllers for Kubernetes (manage AWS resources from K8s)
+- **EKS Capabilities - kro**: Kubernetes Resource Orchestrator (custom API abstraction)
 - **CloudWatch Observability**: Integrated monitoring with Application Signals
 - **IAM Identity Center**: SSO authentication for Argo CD (built-in feature of managed version)
 
@@ -55,7 +67,8 @@ bootstrap (Root ApplicationSet)
 ├── bootstrap-namespaces    # Auto-discover and deploy namespace configurations
 ├── bootstrap-workloads     # Auto-discover and deploy workloads
 ├── config-addons          # Cluster addons (Argo Rollouts, etc.)
-└── config-automode        # EKS Auto Mode configuration
+├── config-automode        # EKS Auto Mode configuration
+└── config-kro-definitions # kro ResourceGraphDefinitions
 ```
 
 #### 3. Multi-tenancy
@@ -506,6 +519,88 @@ kubectl argo rollouts undo distribution-monitor -n ex-app
 You can also visually verify Rollout status in the Argo CD UI. Blue/Green deployment allows you to verify the new version in the Preview environment before safely switching to production (Active).
 
 For more details, see [apps/distribution-monitor/README.md](apps/distribution-monitor/README.md).
+
+## Workload Abstraction with kro (Kubernetes Resource Orchestrator)
+
+This platform supports [kro](https://kro.run/) as an EKS Capability to reduce developer cognitive load. kro allows platform teams to define custom Kubernetes APIs (ResourceGraphDefinitions) that abstract away complex resource compositions.
+
+### How It Works
+
+```
+Platform Engineer defines RGD          Developer writes Instance
+(once, in platform repo)               (per app, in workload repo)
+                                        
+┌─────────────────────────┐            ┌─────────────────────┐
+│ ResourceGraphDefinition │            │ WebApp Instance      │
+│                         │            │                      │
+│ WebApp API:             │            │ name: bg-demo        │
+│   name, image,          │───────────▶│ image: my-app:v1     │
+│   replicas, port,       │  creates   │ replicas: 2          │
+│   ingressCidrs          │            │ ingressCidrs: x.x.x  │
+└─────────────────────────┘            └─────────────────────┘
+         │                                       │
+         │ defines                               │ triggers kro
+         ▼                                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│ kro auto-generates:                                         │
+│   • Rollout (Blue/Green)                                    │
+│   • Service (active + preview)                              │
+│   • Ingress (active + preview) with IP restriction          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Two Deployment Methods
+
+This repository provides two approaches for deploying the same application:
+
+| Aspect | kro Version | Traditional Version |
+|--------|-------------|---------------------|
+| Location | `workloads/ex-app/bg-demo-kro/` | `workloads/ex-app/bg-demo-traditional/` |
+| Files developer writes | 1 file (WebApp Instance) | 5+ files (Rollout, Service, Ingress, Kustomization) |
+| K8s knowledge required | WebApp spec only | Rollout, Service, Ingress, Kustomize |
+| Config change propagation | Update RGD → auto-applied to all Instances | Each team updates individually |
+| Prerequisites | kro Capability + RGD | Argo Rollouts only |
+
+### Deploying with kro
+
+```bash
+# Push workload using kro variant
+./scripts/push-workload.sh kro
+```
+
+Developer writes only this:
+
+```yaml
+# webapp-instance.yaml
+apiVersion: kro.run/v1alpha1
+kind: WebApp
+metadata:
+  name: bg-demo
+spec:
+  name: bg-demo
+  image: argoproj/rollouts-demo:blue
+  replicas: 2
+  port: 8080
+  ingressCidrs: "x.x.x.x/32,y.y.y.y/32"
+```
+
+### Deploying with Traditional Kustomize
+
+```bash
+# Push workload using traditional variant
+./scripts/push-workload.sh traditional
+```
+
+Developer manages individual manifests (Rollout, Service, Ingress) with Kustomize overlays.
+
+### Adding a New RGD (Platform Engineer)
+
+1. Create a new RGD YAML in `repositories/platform/config/kro-definitions/`
+2. Push to CodeCommit via `./scripts/push-platform.sh`
+3. ArgoCD syncs the RGD → kro generates the new CRD
+4. Developers can now use the new custom API
+
+For detailed usage instructions, see [repositories/workloads/README.md](repositories/workloads/README.md).
 
 ## Managing AWS Resources with ACK (AWS Controllers for Kubernetes)
 
